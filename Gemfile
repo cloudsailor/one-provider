@@ -60,3 +60,5 @@ gem "doorkeeper", "~> 5.1"
 gem "doorkeeper-jwt", "~> 0.3.0"
 gem "doorkeeper-mongodb", "~> 5.0"
 gem "mongoid", "~> 7.0"
+
+gem "devise", "~> 4.6"
