@@ -326,4 +326,5 @@ Doorkeeper.configure do
   # WWW-Authenticate Realm (default "Doorkeeper").
   #
   # realm "Doorkeeper"
+  access_token_generator '::Doorkeeper::JWT'
 end
