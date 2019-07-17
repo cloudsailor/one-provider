@@ -10,23 +10,28 @@ Doorkeeper.configure do
     # Put your resource owner authentication logic here.
     # Example implementation:
     #   User.find_by_id(session[:user_id]) || redirect_to(new_user_session_url)
+    if user_signed_in?
+      current_user
+    else
+      session[:user_return_to] = request.fullpath
+      redirect_to new_user_session_path
+    end
   end
 
   # If you didn't skip applications controller from Doorkeeper routes in your application routes.rb
   # file then you need to declare this block in order to restrict access to the web interface for
   # adding oauth authorized applications. In other case it will return 403 Forbidden response
   # every time somebody will try to access the admin web interface.
-  #
-  # admin_authenticator do
-  #   # Put your admin authentication logic here.
-  #   # Example implementation:
-  #
-  #   if current_user
-  #     head :forbidden unless current_user.admin?
-  #   else
-  #     redirect_to sign_in_url
-  #   end
-  # end
+
+  admin_authenticator do
+    # Put your admin authentication logic here.
+    # Example implementation:
+    if current_user
+      head :forbidden unless current_user.admin?
+    else
+      redirect_to new_user_session_url
+    end
+  end
 
   # If you are planning to use Doorkeeper in Rails 5 API-only application, then you might
   # want to use API mode that will skip all the views management and change the way how
@@ -45,8 +50,7 @@ Doorkeeper.configure do
 
   # Access token expiration time (default 2 hours).
   # If you want to disable expiration, set this to nil.
-  #
-  # access_token_expires_in 2.hours
+  access_token_expires_in 1.year
 
   # Assign custom TTL for access tokens. Will be used instead of access_token_expires_in
   # option if defined. In case the block returns `nil` value Doorkeeper fallbacks to
@@ -67,7 +71,7 @@ Doorkeeper.configure do
   # Use a custom class for generating the access token.
   # See https://github.com/doorkeeper-gem/doorkeeper#custom-access-token-generator
   #
-  # access_token_generator '::Doorkeeper::JWT'
+  access_token_generator '::Doorkeeper::JWT'
 
   # The controller Doorkeeper::ApplicationController inherits from.
   # Defaults to ActionController::Base.
@@ -84,7 +88,7 @@ Doorkeeper.configure do
   #
   # You can not enable this option together with +hash_token_secrets+.
   #
-  # reuse_access_token
+  reuse_access_token
 
   # Set a limit for token_reuse if using reuse_access_token option
   #
@@ -326,5 +330,31 @@ Doorkeeper.configure do
   # WWW-Authenticate Realm (default "Doorkeeper").
   #
   # realm "Doorkeeper"
-  access_token_generator '::Doorkeeper::JWT'
+end
+
+Doorkeeper::JWT.configure do
+  token_payload do |opts|
+    user = User.find(opts[:resource_owner_id])
+
+    {
+      iss: Rails.application.class.parent.to_s.underscore,
+      iat: Time.now.utc.to_i,
+      jti: SecureRandom.uuid,
+
+      user: {
+        id: user.id,
+        email: user.email
+      }
+    }
+  end
+
+  # Set the encryption secret. This would be shared with any other applications
+  # that should be able to read the payload of the token.
+  # Defaults to "secret"
+  #
+  secret_key ENV["JWT_ENCRYPTION_SECRET"]
+  # Specify encryption type. Supports any algorithim in
+  # https://github.com/progrium/ruby-jwt
+  # defaults to nil
+  encryption_method :hs256
 end
